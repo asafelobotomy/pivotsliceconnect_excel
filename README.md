@@ -7,7 +7,7 @@ This repository contains two VBA modules for Excel that automate the creation an
 ### `CreatePivotTablesAndSlicers`
 File: `Slicer & Pivot v3.bas`
 
-Creates a PivotTable and a Slicer for every column of the **Tidied Data** sheet. Slicers are positioned in three columns, sorted alphabetically and grouped by prefix (`M -`, `Q -`, `SQ -`). At the end a message box confirms completion.
+Creates a PivotTable and a Slicer for every column of the **Tidied Data** sheet. Slicers are positioned in three columns, sorted alphabetically and grouped by prefix (`M -`, `Q -`, `SQ -`). Each group uses its own fill color so you can easily differentiate them. At the end a message box confirms completion.
 
 ### `ConnectSlicers_StatusBar_Final`
 File: `Connections v2.bas`

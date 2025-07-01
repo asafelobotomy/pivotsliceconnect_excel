@@ -151,6 +151,7 @@ NextPivot:
     Dim shapeNames() As String
     Dim idx As Integer
     Dim prefix As String
+    Dim groupColor As Long
     Dim groupTop As Double
     Dim groupLeft As Double
     Dim groupSpacing As Double
@@ -165,12 +166,15 @@ NextPivot:
             Case 1
                 Set groupColl = slicersM
                 prefix = "M"
+                groupColor = RGB(242, 220, 219) 'light red
             Case 2
                 Set groupColl = slicersQ
                 prefix = "Q"
+                groupColor = RGB(226, 239, 218) 'light green
             Case 3
                 Set groupColl = slicersSQ
                 prefix = "SQ"
+                groupColor = RGB(222, 235, 247) 'light blue
         End Select
 
         If Not groupColl Is Nothing And groupColl.Count > 0 Then
@@ -189,6 +193,7 @@ NextPivot:
                 With slicer.Shape
                     .Left = groupLeft + colPos * slicerLeftOffset
                     .Top = groupTop + rowPos * slicerHeight
+                    .Fill.ForeColor.RGB = groupColor
                 End With
                 shapeNames(idx) = slicer.Name
                 idx = idx + 1
