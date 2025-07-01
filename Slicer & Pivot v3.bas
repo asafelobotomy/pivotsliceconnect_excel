@@ -193,7 +193,9 @@ NextPivot:
                 With slicer.Shape
                     .Left = groupLeft + colPos * slicerLeftOffset
                     .Top = groupTop + rowPos * slicerHeight
-                    .Fill.ForeColor.RGB = groupColor
+                    ' Ensure the color is limited to 24-bit range to avoid
+                    ' "value out of range" errors on some Excel versions
+                    .Fill.ForeColor.RGB = groupColor And &HFFFFFF
                 End With
                 shapeNames(idx) = slicer.Name
                 idx = idx + 1
