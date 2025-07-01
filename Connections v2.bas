@@ -1,7 +1,8 @@
+Option Explicit
 Attribute VB_Name = "Module1"
 Sub ConnectSlicers_StatusBar_Final()
     Dim wsPivot As Worksheet
-    Dim slicerCache As slicerCache
+    Dim slicerCache As SlicerCache
     Dim pt As PivotTable
     Dim scPT As PivotTable
     Dim ptList As Collection

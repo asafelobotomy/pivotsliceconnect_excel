@@ -1,13 +1,14 @@
+Option Explicit
 Attribute VB_Name = "Module1"
 Sub CreatePivotTablesAndSlicers()
     Dim wsData As Worksheet, wsPivot As Worksheet
     Dim pc As PivotCache
-    Dim pt As pivotTable
+    Dim pt As PivotTable
     Dim lastRow As Long, lastCol As Long
     Dim colIndex As Integer, pivotRow As Long
     Dim rng As Range, pRange As Range
-    Dim slicer As slicer
-    Dim sc As slicerCache
+    Dim slicer As Slicer
+    Dim sc As SlicerCache
     Dim fieldName As String
     Dim slicerLeftBase As Double
     Dim slicerLeftOffset As Double
@@ -15,6 +16,7 @@ Sub CreatePivotTablesAndSlicers()
     Dim currentColumn As Integer
     Dim slicerCollection As Collection
     Dim grpShape As Shape
+    Dim sortedColumn As Integer
 
     ' Set worksheets
     Set wsData = ThisWorkbook.Sheets("Tidied Data")
