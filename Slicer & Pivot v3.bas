@@ -1,12 +1,12 @@
 Option Explicit
-Attribute VB_Name = "Module1"
+Attribute VB_Name = "PivotSlicerModule"
 Sub CreatePivotTablesAndSlicers()
     Dim wsData As Worksheet, wsPivot As Worksheet
     Dim pc As PivotCache
     Dim pt As PivotTable
     Dim lastRow As Long, lastCol As Long
     Dim colIndex As Integer, pivotRow As Long
-    Dim rng As Range, pRange As Range
+    Dim rng As Range
     Dim slicer As Slicer
     Dim sc As SlicerCache
     Dim fieldName As String
@@ -49,7 +49,6 @@ Sub CreatePivotTablesAndSlicers()
    ' Loop through each column to create Pivot Tables and Slicers
     For colIndex = 1 To lastCol
         ' Define the data range for the current column
-        Set pRange = wsData.Range(wsData.Cells(1, colIndex), wsData.Cells(lastRow, colIndex))
 
         ' Create a Pivot Table
         Set pt = wsPivot.PivotTables.Add(PivotCache:=pc, TableDestination:=wsPivot.Cells(pivotRow, 1))
@@ -130,6 +129,7 @@ NextPivot:
     Dim slicerName As String, captionText As String
     Dim shapeArrayM() As String, shapeArrayQ() As String, shapeArraySQ() As String
     Dim mCount As Integer, qCount As Integer, sqCount As Integer
+    Dim mIndex As Integer, qIndex As Integer, sqIndex As Integer
     Dim sortedTop(1 To 3) As Double
 
     mCount = 0: qCount = 0: sqCount = 0
@@ -141,11 +141,11 @@ NextPivot:
         If Left(captionText, 4) = "SQ -" Then sqCount = sqCount + 1
     Next i
 
-    ReDim shapeArrayM(1 To mCount)
-    ReDim shapeArrayQ(1 To qCount)
-    ReDim shapeArraySQ(1 To sqCount)
+    If mCount > 0 Then ReDim shapeArrayM(1 To mCount)
+    If qCount > 0 Then ReDim shapeArrayQ(1 To qCount)
+    If sqCount > 0 Then ReDim shapeArraySQ(1 To sqCount)
 
-    mCount = 1: qCount = 1: sqCount = 1
+    mIndex = 1: qIndex = 1: sqIndex = 1
     sortedColumn = 1
     sortedTop(1) = wsPivot.Rows(1).Top
     sortedTop(2) = wsPivot.Rows(1).Top
@@ -162,11 +162,14 @@ NextPivot:
         End With
 
         If Left(captionText, 3) = "M -" Then
-            shapeArrayM(mCount) = slicerName: mCount = mCount + 1
+            shapeArrayM(mIndex) = slicerName
+            mIndex = mIndex + 1
         ElseIf Left(captionText, 3) = "Q -" Then
-            shapeArrayQ(qCount) = slicerName: qCount = qCount + 1
+            shapeArrayQ(qIndex) = slicerName
+            qIndex = qIndex + 1
         ElseIf Left(captionText, 4) = "SQ -" Then
-            shapeArraySQ(sqCount) = slicerName: sqCount = sqCount + 1
+            shapeArraySQ(sqIndex) = slicerName
+            sqIndex = sqIndex + 1
         End If
 
         sortedColumn = sortedColumn + 1

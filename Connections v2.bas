@@ -1,5 +1,5 @@
 Option Explicit
-Attribute VB_Name = "Module1"
+Attribute VB_Name = "ConnectionsModule"
 Sub ConnectSlicers_StatusBar_Final()
     Dim wsPivot As Worksheet
     Dim slicerCache As SlicerCache
@@ -22,6 +22,7 @@ Sub ConnectSlicers_StatusBar_Final()
     Dim percentDone As Integer
     Dim lastPercent As Integer
     Dim spinnerIndex As Integer
+    Dim prevStatusBar As Boolean
 
     On Error GoTo SafeExit
 
@@ -30,6 +31,7 @@ Sub ConnectSlicers_StatusBar_Final()
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
+    prevStatusBar = Application.DisplayStatusBar
     Application.DisplayStatusBar = True
 
     ' Spinner config
@@ -98,6 +100,7 @@ SafeExit:
     Application.ScreenUpdating = True
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
+    Application.DisplayStatusBar = prevStatusBar
 
     If Err.Number <> 0 Then
         MsgBox "? Error: " & Err.Description, vbExclamation
