@@ -92,7 +92,8 @@ Sub ConnectSlicers_StatusBar_Final()
                 elapsedTime = Timer - startTime
                 estRemaining = (totalSteps - stepIndex) * (elapsedTime / stepIndex)
 
-                Application.StatusBar = spinnerChar & " " & percentDone & "% complete | Connected: " & connectedCount & " / " & totalSteps & _
+                Application.StatusBar = spinnerChar & " " & percentDone & "% complete | Processed: " & stepIndex & " / " & totalSteps & _
+                    " | New: " & connectedCount & " | Already: " & alreadyLinkedCount & _
                     " | Elapsed: " & Round(elapsedTime / 60, 0) & " min | Remaining: ~" & Round(estRemaining / 60, 0) & " min"
             End If
         Next pt
@@ -100,7 +101,8 @@ Sub ConnectSlicers_StatusBar_Final()
 
 SafeExit:
     elapsedTime = Timer - startTime
-    Application.StatusBar = "? 100% complete | Connected: " & connectedCount & " / " & totalSteps & _
+    Application.StatusBar = "? 100% complete | Processed: " & totalSteps & " / " & totalSteps & _
+        " | New: " & connectedCount & " | Already: " & alreadyLinkedCount & _
         " | Elapsed: " & Round(elapsedTime / 60, 0) & " min | Remaining: ~0 min"
 
     Application.ScreenUpdating = True
@@ -111,7 +113,9 @@ SafeExit:
     If Err.Number <> 0 Then
         MsgBox "? Error: " & Err.Description, vbExclamation
     Else
-        MsgBox "? Slicer linking complete. " & connectedCount & " connections made.", vbInformation
+        MsgBox "? Slicer linking complete. " & connectedCount & _
+            " new connections made, " & alreadyLinkedCount & _
+            " were already linked.", vbInformation
     End If
 End Sub
 
