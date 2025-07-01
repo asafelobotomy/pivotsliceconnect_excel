@@ -152,9 +152,13 @@ NextPivot:
     Dim idx As Integer
     Dim prefix As String
     Dim groupTop As Double
+    Dim groupLeft As Double
+    Dim groupSpacing As Double
 
-    ' Start placing groups from the top of the sheet
+    ' Start placing groups from the left of the sheet
     groupTop = wsPivot.Rows(1).Top
+    groupLeft = slicerLeftBase
+    groupSpacing = 10
 
     For groupIndex = 1 To 3
         Select Case groupIndex
@@ -183,7 +187,7 @@ NextPivot:
 
             For Each slicer In groupColl
                 With slicer.Shape
-                    .Left = slicerLeftBase + colPos * slicerLeftOffset
+                    .Left = groupLeft + colPos * slicerLeftOffset
                     .Top = groupTop + rowPos * slicerHeight
                 End With
                 shapeNames(idx) = slicer.Name
@@ -196,8 +200,8 @@ NextPivot:
                 End If
             Next slicer
 
-            ' Advance the starting top for the next group
-            groupTop = groupTop + (rowPos + 1) * slicerHeight + 10
+            ' Advance the starting left for the next group
+            groupLeft = groupLeft + (WorksheetFunction.Min(groupColl.Count, 3) * slicerLeftOffset) + groupSpacing
 
             If groupColl.Count > 1 Then
                 Set grpShape = wsPivot.Shapes.Range(shapeNames).Group
