@@ -14,6 +14,8 @@ File: `Connections v2.bas`
 
 Links all slicers in the workbook to every PivotTable on the **PivotTable** sheet. A status bar spinner shows progress and a summary is displayed when finished.
 
+Both macros automatically create the **PivotTable** worksheet if it does not already exist.
+
 ## Importing the Modules
 
 1. Open your workbook in Excel (tested with Excel 365 on Windows).
