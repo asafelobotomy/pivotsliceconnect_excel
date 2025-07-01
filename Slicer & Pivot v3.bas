@@ -15,8 +15,8 @@ Sub CreatePivotTablesAndSlicers()
     Dim slicerTop(1 To 3) As Double
     Dim currentColumn As Integer
     Dim slicerCollection As Collection
+    Dim slicersM As Collection, slicersQ As Collection, slicersSQ As Collection
     Dim grpShape As Shape
-    Dim sortedColumn As Integer
 
     ' Set worksheets
     Set wsData = ThisWorkbook.Sheets("Tidied Data")
@@ -50,8 +50,11 @@ Sub CreatePivotTablesAndSlicers()
     slicerTop(3) = wsPivot.Rows(1).Top
     currentColumn = 1
 
-    ' Collection to store slicer names and captions for sorting
+    ' Collections to store slicers
     Set slicerCollection = New Collection
+    Set slicersM = New Collection
+    Set slicersQ = New Collection
+    Set slicersSQ = New Collection
 
    ' Loop through each column to create Pivot Tables and Slicers
     For colIndex = 1 To lastCol
@@ -100,8 +103,8 @@ Sub CreatePivotTablesAndSlicers()
                 slicerTop(currentColumn) = slicerTop(currentColumn) + .Height ' Move to the next position in the column
             End With
 
-            ' Add slicer name and caption to the collection
-            slicerCollection.Add slicer.Name & ":" & slicer.Caption
+            ' Store slicer object for later sorting
+            slicerCollection.Add slicer
 
             ' Move to the next column, loop back to the first after the third
             currentColumn = currentColumn + 1
@@ -111,90 +114,81 @@ Sub CreatePivotTablesAndSlicers()
 NextPivot:
     Next colIndex
 
-     ' Sort slicers alphabetically by caption
-    Dim sortedSlicers() As String
-    Dim temp As String
+    ' Convert collection to array for sorting
+    Dim slicers() As Slicer
+    Dim tempSlicer As Slicer
     Dim i As Integer, j As Integer
 
-    ReDim sortedSlicers(1 To slicerCollection.Count)
-
+    ReDim slicers(1 To slicerCollection.Count)
     For i = 1 To slicerCollection.Count
-        sortedSlicers(i) = slicerCollection(i)
+        Set slicers(i) = slicerCollection(i)
     Next i
 
-    For i = 1 To UBound(sortedSlicers) - 1
-        For j = i + 1 To UBound(sortedSlicers)
-            If Split(sortedSlicers(i), ":")(1) > Split(sortedSlicers(j), ":")(1) Then
-                temp = sortedSlicers(i)
-                sortedSlicers(i) = sortedSlicers(j)
-                sortedSlicers(j) = temp
+    ' Sort slicers alphabetically by caption
+    For i = 1 To UBound(slicers) - 1
+        For j = i + 1 To UBound(slicers)
+            If slicers(i).Caption > slicers(j).Caption Then
+                Set tempSlicer = slicers(i)
+                Set slicers(i) = slicers(j)
+                Set slicers(j) = tempSlicer
             End If
         Next j
     Next i
 
-    ' Reposition slicers and group by prefix
-    Dim slicerName As String, captionText As String
-    Dim shapeArrayM() As String, shapeArrayQ() As String, shapeArraySQ() As String
-    Dim mCount As Integer, qCount As Integer, sqCount As Integer
-    Dim mIndex As Integer, qIndex As Integer, sqIndex As Integer
-    Dim sortedTop(1 To 3) As Double
-
-    mCount = 0: qCount = 0: sqCount = 0
-
-    For i = LBound(sortedSlicers) To UBound(sortedSlicers)
-        captionText = Split(sortedSlicers(i), ":")(1)
-        If Left(captionText, 3) = "M -" Then mCount = mCount + 1
-        If Left(captionText, 3) = "Q -" Then qCount = qCount + 1
-        If Left(captionText, 4) = "SQ -" Then sqCount = sqCount + 1
+    ' Categorize slicers
+    For i = 1 To UBound(slicers)
+        If Left(slicers(i).Caption, 3) = "M -" Then
+            slicersM.Add slicers(i)
+        ElseIf Left(slicers(i).Caption, 3) = "Q -" Then
+            slicersQ.Add slicers(i)
+        ElseIf Left(slicers(i).Caption, 4) = "SQ -" Then
+            slicersSQ.Add slicers(i)
+        End If
     Next i
 
-    If mCount > 0 Then ReDim shapeArrayM(1 To mCount)
-    If qCount > 0 Then ReDim shapeArrayQ(1 To qCount)
-    If sqCount > 0 Then ReDim shapeArraySQ(1 To sqCount)
+    Dim groupIndex As Integer
+    Dim groupColl As Collection
+    Dim shapeNames() As String
+    Dim idx As Integer
+    Dim prefix As String
+    Dim sortedTop(1 To 3) As Double
 
-    mIndex = 1: qIndex = 1: sqIndex = 1
-    sortedColumn = 1
     sortedTop(1) = wsPivot.Rows(1).Top
     sortedTop(2) = wsPivot.Rows(1).Top
     sortedTop(3) = wsPivot.Rows(1).Top
 
-    For i = LBound(sortedSlicers) To UBound(sortedSlicers)
-        slicerName = Split(sortedSlicers(i), ":")(0)
-        captionText = Split(sortedSlicers(i), ":")(1)
+    For groupIndex = 1 To 3
+        Select Case groupIndex
+            Case 1
+                Set groupColl = slicersM
+                prefix = "M"
+            Case 2
+                Set groupColl = slicersQ
+                prefix = "Q"
+            Case 3
+                Set groupColl = slicersSQ
+                prefix = "SQ"
+        End Select
 
-        With wsPivot.Shapes(slicerName)
-            .Left = slicerLeftBase + (sortedColumn - 1) * slicerLeftOffset
-            .Top = sortedTop(sortedColumn)
-            sortedTop(sortedColumn) = sortedTop(sortedColumn) + .Height
-        End With
+        If Not groupColl Is Nothing And groupColl.Count > 0 Then
+            ReDim shapeNames(1 To groupColl.Count)
+            idx = 1
+            For Each slicer In groupColl
+                With slicer.Shape
+                    .Left = slicerLeftBase + (groupIndex - 1) * slicerLeftOffset
+                    .Top = sortedTop(groupIndex)
+                    sortedTop(groupIndex) = sortedTop(groupIndex) + .Height
+                End With
+                shapeNames(idx) = slicer.Name
+                idx = idx + 1
+            Next slicer
 
-        If Left(captionText, 3) = "M -" Then
-            shapeArrayM(mIndex) = slicerName
-            mIndex = mIndex + 1
-        ElseIf Left(captionText, 3) = "Q -" Then
-            shapeArrayQ(qIndex) = slicerName
-            qIndex = qIndex + 1
-        ElseIf Left(captionText, 4) = "SQ -" Then
-            shapeArraySQ(sqIndex) = slicerName
-            sqIndex = sqIndex + 1
+            If groupColl.Count > 1 Then
+                Set grpShape = wsPivot.Shapes.Range(shapeNames).Group
+                grpShape.Name = "Group_" & prefix & "_Slicers"
+            End If
         End If
-
-        sortedColumn = sortedColumn + 1
-        If sortedColumn > 3 Then sortedColumn = 1
-    Next i
-
-    If mCount > 1 Then
-        Set grpShape = wsPivot.Shapes.Range(shapeArrayM).Group
-        grpShape.Name = "Group_M_Slicers"
-    End If
-    If qCount > 1 Then
-        Set grpShape = wsPivot.Shapes.Range(shapeArrayQ).Group
-        grpShape.Name = "Group_Q_Slicers"
-    End If
-    If sqCount > 1 Then
-        Set grpShape = wsPivot.Shapes.Range(shapeArraySQ).Group
-        grpShape.Name = "Group_SQ_Slicers"
-    End If
+    Next groupIndex
 
     MsgBox "Pivot Tables and Slicers Created Successfully!", vbInformation
 End Sub
