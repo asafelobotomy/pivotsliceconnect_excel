@@ -224,7 +224,7 @@ End Sub
 
 ' Helper to create/apply a slicer style with colored buttons
 Private Sub ApplySlicerButtonStyle(groupColl As Collection, clr As Long, styleName As String)
-    Dim sty As SlicerStyle
+    Dim sty As Object 'Use late binding for Mac compatibility
     Dim sl As Slicer
 
     On Error Resume Next

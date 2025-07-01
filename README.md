@@ -5,7 +5,7 @@ This repository contains two VBA modules for Excel that automate the creation an
 ## Macros
 
 ### `CreatePivotTablesAndSlicers`
-File: `Slicer & Pivot v3.bas`
+File: `Slicer & Pivot v4.bas`
 
 Creates a PivotTable and a Slicer for every column of the **Tidied Data** sheet. Slicers are positioned in three columns, sorted alphabetically and grouped by prefix (`M -`, `Q -`, `SQ -`). Each group uses its own fill color so you can easily differentiate them. At the end a message box confirms completion.
 
@@ -21,7 +21,7 @@ Both macros automatically create the **PivotTable** worksheet if it does not alr
 1. Open your workbook in Excel (tested with Excel 365 on Windows).
 2. Press `Alt`+`F11` to open the VBA editor.
 3. Choose **File &gt; Import File...**.
-4. Select `Slicer & Pivot v3.bas` and click **Open**.
+4. Select `Slicer & Pivot v4.bas` and click **Open**.
 5. Repeat the import for `Connections v2.bas`.
 6. Save the workbook as a macro-enabled file (`.xlsm`).
 
