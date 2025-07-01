@@ -12,7 +12,7 @@ Creates a PivotTable and a Slicer for every column of the **Tidied Data** sheet.
 ### `ConnectSlicers_StatusBar_Final`
 File: `Connections v2.bas`
 
-Links all slicers in the workbook to every PivotTable on the **PivotTable** sheet. A status bar spinner shows progress and a summary is displayed when finished.
+Links all slicers in the workbook to every PivotTable on the **PivotTable** sheet. The status bar spinner now reports how many PivotTable/slicer pairs have been processed, including a breakdown of new versus already linked connections. A summary is displayed when finished.
 
 Both macros automatically create the **PivotTable** worksheet if it does not already exist.
 
