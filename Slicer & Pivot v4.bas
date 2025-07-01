@@ -157,7 +157,7 @@ NextPivot:
     Dim groupSpacing As Double
 
     ' Start placing groups from the left of the sheet
-    groupTop = wsPivot.Rows(1).Top
+    groupTop = wsPivot.Rows(20).Top
     groupLeft = slicerLeftBase
     groupSpacing = 10
 
@@ -176,6 +176,11 @@ NextPivot:
                 prefix = "SQ"
                 groupColor = RGB(222, 235, 247) 'light blue
         End Select
+
+        ' Apply a unique slicer style for this group
+        If Not groupColl Is Nothing And groupColl.Count > 0 Then
+            ApplySlicerButtonStyle groupColl, groupColor, "Group_" & prefix & "_Style"
+        End If
 
         If Not groupColl Is Nothing And groupColl.Count > 0 Then
             ReDim shapeNames(1 To groupColl.Count)
@@ -215,5 +220,29 @@ NextPivot:
     Next groupIndex
 
     MsgBox "Pivot Tables and Slicers Created Successfully!", vbInformation
+End Sub
+
+' Helper to create/apply a slicer style with colored buttons
+Private Sub ApplySlicerButtonStyle(groupColl As Collection, clr As Long, styleName As String)
+    Dim sty As SlicerStyle
+    Dim sl As Slicer
+
+    On Error Resume Next
+    Set sty = ThisWorkbook.SlicerStyles(styleName)
+    On Error GoTo 0
+
+    If sty Is Nothing Then
+        Set sty = ThisWorkbook.SlicerStyles.Add(styleName, "SlicerStyleLight1")
+        With sty
+            .SlicerStyleElements(xlSlicerSelectedItemWithData).Interior.Color = clr
+            .SlicerStyleElements(xlSlicerSelectedItemWithNoData).Interior.Color = clr
+            .SlicerStyleElements(xlSlicerUnselectedItemWithData).Interior.Color = clr
+            .SlicerStyleElements(xlSlicerUnselectedItemWithNoData).Interior.Color = clr
+        End With
+    End If
+
+    For Each sl In groupColl
+        sl.Style = sty.Name
+    Next sl
 End Sub
 
