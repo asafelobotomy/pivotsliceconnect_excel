@@ -151,11 +151,10 @@ NextPivot:
     Dim shapeNames() As String
     Dim idx As Integer
     Dim prefix As String
-    Dim sortedTop(1 To 3) As Double
+    Dim groupTop As Double
 
-    sortedTop(1) = wsPivot.Rows(1).Top
-    sortedTop(2) = wsPivot.Rows(1).Top
-    sortedTop(3) = wsPivot.Rows(1).Top
+    ' Start placing groups from the top of the sheet
+    groupTop = wsPivot.Rows(1).Top
 
     For groupIndex = 1 To 3
         Select Case groupIndex
@@ -173,15 +172,32 @@ NextPivot:
         If Not groupColl Is Nothing And groupColl.Count > 0 Then
             ReDim shapeNames(1 To groupColl.Count)
             idx = 1
+
+            Dim colPos As Integer
+            Dim rowPos As Integer
+            Dim slicerHeight As Double
+
+            colPos = 0
+            rowPos = 0
+            slicerHeight = groupColl(1).Shape.Height
+
             For Each slicer In groupColl
                 With slicer.Shape
-                    .Left = slicerLeftBase + (groupIndex - 1) * slicerLeftOffset
-                    .Top = sortedTop(groupIndex)
-                    sortedTop(groupIndex) = sortedTop(groupIndex) + .Height
+                    .Left = slicerLeftBase + colPos * slicerLeftOffset
+                    .Top = groupTop + rowPos * slicerHeight
                 End With
                 shapeNames(idx) = slicer.Name
                 idx = idx + 1
+
+                colPos = colPos + 1
+                If colPos >= 3 Then
+                    colPos = 0
+                    rowPos = rowPos + 1
+                End If
             Next slicer
+
+            ' Advance the starting top for the next group
+            groupTop = groupTop + (rowPos + 1) * slicerHeight + 10
 
             If groupColl.Count > 1 Then
                 Set grpShape = wsPivot.Shapes.Range(shapeNames).Group
