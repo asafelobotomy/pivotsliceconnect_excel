@@ -20,7 +20,14 @@ Sub CreatePivotTablesAndSlicers()
 
     ' Set worksheets
     Set wsData = ThisWorkbook.Sheets("Tidied Data")
+
+    On Error Resume Next
     Set wsPivot = ThisWorkbook.Sheets("PivotTable")
+    On Error GoTo 0
+    If wsPivot Is Nothing Then
+        Set wsPivot = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsPivot.Name = "PivotTable"
+    End If
 
     ' Find last row and last column in Tidied Data
     lastRow = wsData.Cells(Rows.Count, 1).End(xlUp).Row

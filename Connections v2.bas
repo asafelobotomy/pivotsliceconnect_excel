@@ -27,7 +27,13 @@ Sub ConnectSlicers_StatusBar_Final()
     On Error GoTo SafeExit
 
     ' Setup
+    On Error Resume Next
     Set wsPivot = ThisWorkbook.Sheets("PivotTable")
+    On Error GoTo 0
+    If wsPivot Is Nothing Then
+        Set wsPivot = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsPivot.Name = "PivotTable"
+    End If
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
