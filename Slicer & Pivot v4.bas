@@ -193,9 +193,6 @@ NextPivot:
                 With slicer.Shape
                     .Left = groupLeft + colPos * slicerLeftOffset
                     .Top = groupTop + rowPos * slicerHeight
-                    ' Set the slicer color; masking caused errors on some
-                    ' machines so simply assign the RGB value directly
-                    .Fill.ForeColor.RGB = groupColor
                 End With
                 shapeNames(idx) = slicer.Name
                 idx = idx + 1
