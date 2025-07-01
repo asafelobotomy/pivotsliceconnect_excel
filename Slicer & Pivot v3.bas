@@ -52,7 +52,7 @@ Sub CreatePivotTablesAndSlicers()
         Set pRange = wsData.Range(wsData.Cells(1, colIndex), wsData.Cells(lastRow, colIndex))
 
         ' Create a Pivot Table
-        Set pt = wsPivot.pivotTables.Add(PivotCache:=pc, TableDestination:=wsPivot.Cells(pivotRow, 1))
+        Set pt = wsPivot.PivotTables.Add(PivotCache:=pc, TableDestination:=wsPivot.Cells(pivotRow, 1))
 
         ' Set Pivot Table fields
         With pt
