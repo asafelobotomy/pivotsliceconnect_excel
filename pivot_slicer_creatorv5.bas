@@ -2,7 +2,7 @@ Option Explicit
 Attribute VB_Name = "PivotSlicerOptimizedModule"
 
 ' ==================================================================================
-' PERFORMANCE OPTIMIZED VERSION
+' PERFORMANCE OPTIMIZED VERSION - CORRECTED
 ' ==================================================================================
 
 ' Layout Constants
@@ -28,7 +28,7 @@ Private Const PIVOT_SHEET_NAME As String = "PivotTable"
 
 ' Type Definitions for Better Performance
 Private Type SlicerInfo
-    SlicerObject As slicer
+    SlicerObject As Slicer
     Caption As String
     GroupType As Integer  ' 1=M, 2=Q, 3=SQ, 0=Other
     Position As Integer   ' Position within group
@@ -62,7 +62,10 @@ Public Sub CreateAndConnectPivotTablesAndSlicers_Optimized()
     OptimizeExcelPerformance_Aggressive True
     
     ' Pre-validate everything to avoid mid-process failures
-    If Not PreValidateWorkbook() Then Exit Sub
+    If Not PreValidateWorkbook() Then
+        OptimizeExcelPerformance_Aggressive False
+        Exit Sub
+    End If
     
     ' Get and cache all required objects upfront
     Dim wsData As Worksheet, wsPivot As Worksheet
@@ -108,7 +111,7 @@ Public Sub CreateAndConnectPivotTablesAndSlicers_Optimized()
     
 ErrorHandler:
     OptimizeExcelPerformance_Aggressive False
-    MsgBox "❌ Error: " & Err.Description, vbCritical
+    MsgBox "❌ Error: " & Err.Description & " (Line: " & Erl & ")", vbCritical, "Process Error"
 End Sub
 
 ' ==================================================================================
@@ -162,8 +165,12 @@ End Sub
 Private Function PreValidateWorkbook() As Boolean
     On Error GoTo ErrorHandler
     
+    ' Check if data sheet exists
+    Dim wsData As Worksheet
+    Set wsData = ThisWorkbook.Sheets(DATA_SHEET_NAME)
+    
     ' Quick validation without object creation
-    If ThisWorkbook.Sheets(DATA_SHEET_NAME).UsedRange.Rows.Count < 2 Then
+    If wsData.UsedRange.Rows.Count < 2 Then
         MsgBox "❌ No data found in " & DATA_SHEET_NAME & " sheet", vbCritical
         PreValidateWorkbook = False
         Exit Function
@@ -210,9 +217,15 @@ Private Sub ClearWorksheetContent_Fast(ws As Worksheet)
         ThisWorkbook.SlicerCaches(i).Delete
     Next i
     
-    ' Clear shapes and remaining content
-    ws.Shapes.SelectAll
-    If Selection.Count > 0 Then Selection.Delete
+    ' Clear shapes more safely
+    If ws.Shapes.Count > 0 Then
+        Dim shp As Shape
+        For Each shp In ws.Shapes
+            shp.Delete
+        Next shp
+    End If
+    
+    ' Clear all cells
     ws.Cells.Clear
     
     On Error GoTo 0
@@ -341,7 +354,7 @@ Private Function CreateAllSlicers_Batch(wsPivot As Worksheet, pivotTables() As P
     CreateAllSlicers_Batch = slicerInfos
 End Function
 
-Private Function CreateSlicer_Fast(wsPivot As Worksheet, pt As PivotTable, fieldName As String) As slicer
+Private Function CreateSlicer_Fast(wsPivot As Worksheet, pt As PivotTable, fieldName As String) As Slicer
     On Error GoTo ErrorHandler
     
     Dim sc As SlicerCache
@@ -363,9 +376,9 @@ ErrorHandler:
     Set CreateSlicer_Fast = Nothing
 End Function
 
-Private Function DetermineGroupType_Fast(caption As String) As Integer
+Private Function DetermineGroupType_Fast(Caption As String) As Integer
     ' Fast group type determination using Select Case
-    Select Case Left(caption, 4)
+    Select Case Left(Caption, 4)
         Case "M - ", "M -"
             DetermineGroupType_Fast = 1
         Case "Q - ", "Q -"
@@ -383,7 +396,9 @@ End Function
 
 Private Sub OrganizeSlicers_Optimized(wsPivot As Worksheet, ByRef slicerInfos() As SlicerInfo)
     ' Quick sort using more efficient algorithm
-    QuickSortSlicers slicerInfos, 0, UBound(slicerInfos)
+    If UBound(slicerInfos) > 0 Then
+        QuickSortSlicers slicerInfos, 0, UBound(slicerInfos)
+    End If
     
     ' Pre-calculate all positions
     Dim positions() As Variant
@@ -447,12 +462,12 @@ Private Function CalculateAllPositions(slicerInfos() As SlicerInfo, wsPivot As W
         groupType = slicerInfos(i).GroupType
         
         If groupType > 0 Then
-            Dim row As Integer, col As Integer
-            row = groupCounters(groupType) \ SLICER_COLUMNS_PER_GROUP
+            Dim Row As Integer, col As Integer
+            Row = groupCounters(groupType) \ SLICER_COLUMNS_PER_GROUP
             col = groupCounters(groupType) Mod SLICER_COLUMNS_PER_GROUP
             
             positions(i, 0) = groupStarts(groupType) + col * SLICER_LEFT_OFFSET  ' Left
-            positions(i, 1) = wsPivot.Rows(GROUP_TOP_ROW).Top + row * 100  ' Top (estimated height)
+            positions(i, 1) = wsPivot.Rows(GROUP_TOP_ROW).Top + Row * 100  ' Top (estimated height)
             
             groupCounters(groupType) = groupCounters(groupType) + 1
         End If
@@ -479,7 +494,7 @@ Private Sub ApplyPositionsAndStyling_Batch(slicerInfos() As SlicerInfo, position
     Next i
 End Sub
 
-Private Sub ApplyStyling_Fast(slicer As slicer, groupType As Integer)
+Private Sub ApplyStyling_Fast(Slicer As Slicer, groupType As Integer)
     ' Fast styling without custom SlicerStyles
     On Error Resume Next
     
@@ -493,12 +508,12 @@ Private Sub ApplyStyling_Fast(slicer As slicer, groupType As Integer)
     
     #If Mac Then
         ' Mac version - basic shape styling
-        With slicer.Shape
+        With Slicer.Shape
             If .Fill.Visible Then .Fill.ForeColor.RGB = groupColor
         End With
     #Else
         ' Windows version - could use SlicerStyles if needed
-        With slicer.Shape
+        With Slicer.Shape
             If .Fill.Visible Then .Fill.ForeColor.RGB = groupColor
         End With
     #End If
@@ -526,25 +541,27 @@ Private Sub ConnectSlicers_Matrix(pivotTables() As PivotTable, slicerInfos() As 
     Next i
     
     ' Create connection matrix
-    ReDim connectionMatrix(1 To slicerCaches.Count, 0 To UBound(pivotTables))
-    
-    ' Batch connect all slicers to all pivot tables
-    For i = 1 To slicerCaches.Count
-        For j = 0 To UBound(pivotTables)
-            On Error Resume Next
-            slicerCaches(i).PivotTables.AddPivotTable pivotTables(j)
-            If Err.Number = 0 Then
-                connectionMatrix(i, j) = True
-                connectionsEnabled = connectionsEnabled + 1
-            End If
-            On Error GoTo 0
-        Next j
+    If slicerCaches.Count > 0 And UBound(pivotTables) >= 0 Then
+        ReDim connectionMatrix(1 To slicerCaches.Count, 0 To UBound(pivotTables))
         
-        ' Batch progress update
-        If i Mod BATCH_SIZE = 0 Then
-            Application.StatusBar = "🔗 Connected " & connectionsEnabled & " slicer-pivot pairs..."
-        End If
-    Next i
+        ' Batch connect all slicers to all pivot tables
+        For i = 1 To slicerCaches.Count
+            For j = 0 To UBound(pivotTables)
+                On Error Resume Next
+                slicerCaches(i).PivotTables.AddPivotTable pivotTables(j)
+                If Err.Number = 0 Then
+                    connectionMatrix(i, j) = True
+                    connectionsEnabled = connectionsEnabled + 1
+                End If
+                On Error GoTo 0
+            Next j
+            
+            ' Batch progress update
+            If i Mod BATCH_SIZE = 0 Then
+                Application.StatusBar = "🔗 Connected " & connectionsEnabled & " slicer-pivot pairs..."
+            End If
+        Next i
+    End If
     
     Application.StatusBar = "✅ Connected " & connectionsEnabled & " total slicer-pivot pairs"
 End Sub
@@ -593,3 +610,49 @@ End Sub
 Private Function CreatePivotCache(dataRange As Range) As PivotCache
     Set CreatePivotCache = ThisWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:=dataRange)
 End Function
+
+' ==================================================================================
+' ADDITIONAL UTILITY FUNCTIONS (OPTIONAL)
+' ==================================================================================
+
+Public Sub DisconnectAllSlicers()
+    ' Utility function to disconnect all slicers (useful for testing)
+    On Error Resume Next
+    
+    Dim slicerCache As SlicerCache
+    Dim pt As PivotTable
+    Dim disconnectedCount As Long
+    
+    Application.ScreenUpdating = False
+    
+    For Each slicerCache In ThisWorkbook.SlicerCaches
+        For Each pt In slicerCache.PivotTables
+            slicerCache.PivotTables.RemovePivotTable pt
+            disconnectedCount = disconnectedCount + 1
+        Next pt
+    Next slicerCache
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "Disconnected " & disconnectedCount & " slicer connections.", vbInformation, "Disconnect Complete"
+    On Error GoTo 0
+End Sub
+
+Public Sub ShowSlicerConnectionStatus()
+    ' Utility function to show current connection status
+    Dim slicerCache As SlicerCache
+    Dim statusMessage As String
+    Dim totalConnections As Long
+    
+    statusMessage = "Current Slicer Connections:" & vbCrLf & vbCrLf
+    
+    For Each slicerCache In ThisWorkbook.SlicerCaches
+        statusMessage = statusMessage & "Slicer: " & slicerCache.Name & vbCrLf
+        statusMessage = statusMessage & "Connected to " & slicerCache.PivotTables.Count & " pivot tables" & vbCrLf & vbCrLf
+        totalConnections = totalConnections + slicerCache.PivotTables.Count
+    Next slicerCache
+    
+    statusMessage = statusMessage & "Total connections: " & totalConnections
+    
+    MsgBox statusMessage, vbInformation, "Connection Status"
+End Sub
