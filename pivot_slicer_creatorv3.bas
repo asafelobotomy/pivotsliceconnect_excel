@@ -188,15 +188,35 @@ Private Function GetOrCreatePivotWorksheet_Fast() As Worksheet
         Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
         ws.Name = PIVOT_SHEET_NAME
     Else
-        ' Fast clear - just delete everything at once
-        On Error Resume Next
-        ws.Cells.Delete
-        ThisWorkbook.SlicerCaches.Delete  ' Clear all slicer caches
-        On Error GoTo 0
+        ' Comprehensive clear
+        ClearWorksheetContent_Fast ws
     End If
     
     Set GetOrCreatePivotWorksheet_Fast = ws
 End Function
+
+Private Sub ClearWorksheetContent_Fast(ws As Worksheet)
+    On Error Resume Next
+    
+    ' Clear pivot tables first
+    Dim pt As PivotTable
+    For Each pt In ws.PivotTables
+        pt.TableRange2.Clear
+    Next pt
+    
+    ' Clear slicer caches (backward loop to avoid collection modification issues)
+    Dim i As Long
+    For i = ThisWorkbook.SlicerCaches.Count To 1 Step -1
+        ThisWorkbook.SlicerCaches(i).Delete
+    Next i
+    
+    ' Clear shapes and remaining content
+    ws.Shapes.SelectAll
+    If Selection.Count > 0 Then Selection.Delete
+    ws.Cells.Clear
+    
+    On Error GoTo 0
+End Sub
 
 Private Function GetDataRange_Fast(wsData As Worksheet) As Range
     ' Use more efficient range detection
