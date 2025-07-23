@@ -55,6 +55,12 @@ Private Enum ProcessPhase
     Finalizing = 6
 End Enum
 
+Private Enum SlicerGroupType
+    MGroup = 1
+    QGroup = 2
+    SQGroup = 3
+End Enum
+
 ' ==================================================================================
 ' MAIN COMBINED ENTRY POINT
 ' ==================================================================================
@@ -110,7 +116,6 @@ End Sub
 ' ==================================================================================
 
 Public Sub CreatePivotTablesAndSlicersOnly()
-    ' Allows running just the creation part
     On Error GoTo ErrorHandler
     
     OptimizeExcelPerformance True
@@ -141,7 +146,6 @@ ErrorHandler:
 End Sub
 
 Public Sub ConnectSlicersOnly()
-    ' Allows running just the connection part
     On Error GoTo ErrorHandler
     
     OptimizeExcelPerformance True
@@ -174,19 +178,18 @@ Private Sub InitializeCombinedProcess(ByRef progress As OverallProgress)
 End Sub
 
 Private Sub CalculateTotalSteps(ByRef progress As OverallProgress, columnCount As Long)
-    ' Estimate total steps for better progress tracking
     Dim pivotTableCount As Long
     Dim slicerCount As Long
     
     pivotTableCount = columnCount
     slicerCount = columnCount
     
-    progress.TotalSteps = 5 + ' Initialization phases
-                         pivotTableCount + ' Creating pivot tables
-                         slicerCount + ' Creating slicers  
-                         slicerCount + ' Organizing slicers
-                         (slicerCount * pivotTableCount) + ' Connecting slicers
-                         2 ' Finalization
+    progress.TotalSteps = 5 + _
+                         pivotTableCount + _
+                         slicerCount + _
+                         slicerCount + _
+                         (slicerCount * pivotTableCount) + _
+                         2
 End Sub
 
 Private Sub UpdateCombinedProgress(ByRef progress As OverallProgress, phase As ProcessPhase, message As String)
@@ -226,7 +229,6 @@ Private Sub FinalizeCombinedProcess(progress As OverallProgress, slicerCount As 
     
     MsgBox message, vbInformation, "Success"
     
-    ' Clear status bar after delay
     Application.OnTime Now + TimeValue("00:00:03"), "ClearStatusBar"
 End Sub
 
@@ -236,119 +238,7 @@ Private Sub CleanupCombinedProcess()
 End Sub
 
 ' ==================================================================================
-' PIVOT TABLE CREATION (Enhanced from first macro)
-' ==================================================================================
-
-Private Function CreatePivotTablesWithSlicers(wsPivot As Worksheet, pc As PivotCache, dataRange As Range, ByRef progress As OverallProgress) As Collection
-    Dim allSlicers As New Collection
-    Dim colCount As Long, currentRow As Long
-    Dim colIndex As Long
-    
-    colCount = dataRange.Columns.Count
-    currentRow = PIVOT_START_ROW
-    
-    For colIndex = 1 To colCount
-        progress.CurrentStep = progress.CurrentStep + 1
-        
-        Dim fieldName As String
-        fieldName = dataRange.Cells(1, colIndex).Value
-        
-        UpdateCombinedProgress progress, CreatingPivotTables, "Creating pivot table for: " & fieldName
-        
-        ' Create pivot table
-        Dim pt As PivotTable
-        Set pt = CreateSinglePivotTable(wsPivot, pc, fieldName, currentRow)
-        
-        If Not pt Is Nothing Then
-            ' Create slicer for this pivot table
-            Dim slicer As slicer
-            Set slicer = CreateSlicerForPivotTable(wsPivot, pt, fieldName)
-            
-            If Not slicer Is Nothing Then
-                allSlicers.Add slicer
-            End If
-            
-            currentRow = currentRow + pt.TableRange2.Rows.Count + PIVOT_ROW_SPACING
-        End If
-        
-        Set pt = Nothing
-        Set slicer = Nothing
-    Next colIndex
-    
-    Set CreatePivotTablesWithSlicers = allSlicers
-End Function
-
-Private Function CreateSinglePivotTable(wsPivot As Worksheet, pc As PivotCache, fieldName As String, startRow As Long) As PivotTable
-    On Error GoTo ErrorHandler
-    
-    Dim pt As PivotTable
-    Set pt = wsPivot.PivotTables.Add( _
-        PivotCache:=pc, _
-        TableDestination:=wsPivot.Cells(startRow, 1))
-    
-    With pt
-        .PivotFields(fieldName).Orientation = xlRowField
-        .AddDataField .PivotFields(fieldName), "Count", xlCount
-        .AddDataField .PivotFields(fieldName), "% of Total", xlCount
-        .PivotFields("% of Total").Calculation = xlPercentOfTotal
-    End With
-    
-    With wsPivot.Cells(startRow - 1, 1)
-        .Value = fieldName
-        .Font.Bold = True
-    End With
-    
-    Set CreateSinglePivotTable = pt
-    Exit Function
-    
-ErrorHandler:
-    Set CreateSinglePivotTable = Nothing
-End Function
-
-' ==================================================================================
-' SLICER CONNECTION (Enhanced from second macro)
-' ==================================================================================
-
-Private Sub ConnectAllSlicersToAllPivotTables(wsPivot As Worksheet, ByRef progress As OverallProgress)
-    Dim pivotTables As Collection
-    Dim slicerCache As SlicerCache
-    Dim newConnections As Long, existingConnections As Long
-    
-    Set pivotTables = CachePivotTables(wsPivot)
-    
-    For Each slicerCache In ThisWorkbook.SlicerCaches
-        ConnectSlicerCacheToAllPivotTables slicerCache, pivotTables, progress, newConnections, existingConnections
-    Next slicerCache
-    
-    UpdateCombinedProgress progress, ConnectingSlicers, _
-        "Connected " & newConnections & " new, " & existingConnections & " existing"
-End Sub
-
-Private Sub ConnectSlicerCacheToAllPivotTables(slicerCache As SlicerCache, pivotTables As Collection, ByRef progress As OverallProgress, ByRef newConnections As Long, ByRef existingConnections As Long)
-    Dim connectedPivotNames As Collection
-    Dim pt As PivotTable
-    
-    Set connectedPivotNames = GetConnectedPivotTableNames(slicerCache)
-    
-    For Each pt In pivotTables
-        progress.CurrentStep = progress.CurrentStep + 1
-        
-        If Not IsPivotTableAlreadyConnected(pt.Name, connectedPivotNames) Then
-            If ConnectSlicerToPivotTable(slicerCache, pt) Then
-                newConnections = newConnections + 1
-            End If
-        Else
-            existingConnections = existingConnections + 1
-        End If
-        
-        If progress.CurrentStep Mod 5 = 0 Then ' Update every 5 steps
-            UpdateCombinedProgress progress, ConnectingSlicers, "Connecting slicers... (" & newConnections & " new)"
-        End If
-    Next pt
-End Sub
-
-' ==================================================================================
-' UTILITY FUNCTIONS (Shared between both functionalities)
+' WORKSHEET AND DATA MANAGEMENT
 ' ==================================================================================
 
 Private Function GetDataWorksheet() As Worksheet
@@ -410,6 +300,416 @@ Private Function CreatePivotCache(dataRange As Range) As PivotCache
     Set CreatePivotCache = ThisWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:=dataRange)
 End Function
 
+' ==================================================================================
+' PIVOT TABLE CREATION
+' ==================================================================================
+
+Private Function CreatePivotTablesWithSlicers(wsPivot As Worksheet, pc As PivotCache, dataRange As Range, ByRef progress As OverallProgress) As Collection
+    Dim allSlicers As New Collection
+    Dim colCount As Long, currentRow As Long
+    Dim colIndex As Long
+    
+    colCount = dataRange.Columns.Count
+    currentRow = PIVOT_START_ROW
+    
+    For colIndex = 1 To colCount
+        progress.CurrentStep = progress.CurrentStep + 1
+        
+        Dim fieldName As String
+        fieldName = dataRange.Cells(1, colIndex).Value
+        
+        UpdateCombinedProgress progress, CreatingPivotTables, "Creating pivot table for: " & fieldName
+        
+        Dim pt As PivotTable
+        Set pt = CreateSinglePivotTable(wsPivot, pc, fieldName, currentRow)
+        
+        If Not pt Is Nothing Then
+            Dim slicer As slicer
+            Set slicer = CreateSlicerForPivotTable(wsPivot, pt, fieldName)
+            
+            If Not slicer Is Nothing Then
+                allSlicers.Add slicer
+            End If
+            
+            currentRow = currentRow + pt.TableRange2.Rows.Count + PIVOT_ROW_SPACING
+        End If
+        
+        Set pt = Nothing
+        Set slicer = Nothing
+    Next colIndex
+    
+    Set CreatePivotTablesWithSlicers = allSlicers
+End Function
+
+Private Function CreateSinglePivotTable(wsPivot As Worksheet, pc As PivotCache, fieldName As String, startRow As Long) As PivotTable
+    On Error GoTo ErrorHandler
+    
+    Dim pt As PivotTable
+    Set pt = wsPivot.PivotTables.Add( _
+        PivotCache:=pc, _
+        TableDestination:=wsPivot.Cells(startRow, 1))
+    
+    With pt
+        .PivotFields(fieldName).Orientation = xlRowField
+        .AddDataField .PivotFields(fieldName), "Count", xlCount
+        .AddDataField .PivotFields(fieldName), "% of Total", xlCount
+        .PivotFields("% of Total").Calculation = xlPercentOfTotal
+    End With
+    
+    With wsPivot.Cells(startRow - 1, 1)
+        .Value = fieldName
+        .Font.Bold = True
+    End With
+    
+    Set CreateSinglePivotTable = pt
+    Exit Function
+    
+ErrorHandler:
+    Set CreateSinglePivotTable = Nothing
+End Function
+
+' ==================================================================================
+' SLICER CREATION AND MANAGEMENT
+' ==================================================================================
+
+Private Function CreateSlicerForPivotTable(wsPivot As Worksheet, pt As PivotTable, fieldName As String) As slicer
+    On Error GoTo ErrorHandler
+    
+    Dim sc As SlicerCache
+    Set sc = CreateSlicerCache_Compatible(pt, fieldName)
+    
+    If Not sc Is Nothing Then
+        Set CreateSlicerForPivotTable = sc.Slicers.Add(wsPivot)
+    End If
+    Exit Function
+    
+ErrorHandler:
+    Set CreateSlicerForPivotTable = Nothing
+End Function
+
+Private Function CreateSlicerCache_Compatible(pt As PivotTable, fieldName As String) As SlicerCache
+    Dim sc As SlicerCache
+    
+    On Error Resume Next
+    
+    #If Mac Then
+        Set sc = ThisWorkbook.SlicerCaches.Add(pt, fieldName)
+    #Else
+        Set sc = ThisWorkbook.SlicerCaches.Add2(pt, fieldName)
+        If sc Is Nothing Then
+            Set sc = ThisWorkbook.SlicerCaches.Add(pt, fieldName)
+        End If
+    #End If
+    
+    If sc Is Nothing Then
+        Set sc = ThisWorkbook.SlicerCaches.Add(pt, pt.PivotFields(fieldName))
+    End If
+    
+    On Error GoTo 0
+    Set CreateSlicerCache_Compatible = sc
+End Function
+
+' ==================================================================================
+' SLICER ORGANIZATION AND GROUPING
+' ==================================================================================
+
+Private Sub OrganizeSlicersByGroups(allSlicers As Collection, wsPivot As Worksheet, ByRef progress As OverallProgress)
+    Dim sortedSlicers() As slicer
+    Dim groups(1 To 3) As SlicerGroupConfig
+    
+    sortedSlicers = SortSlicersAlphabetically(allSlicers)
+    InitializeSlicerGroups groups
+    CategorizeSlicers sortedSlicers, groups
+    PositionAndStyleGroups groups, wsPivot
+End Sub
+
+Private Function SortSlicersAlphabetically(slicers As Collection) As slicer()
+    Dim slicerArray() As slicer
+    Dim i As Long, j As Long
+    Dim tempSlicer As slicer
+    
+    If slicers.Count = 0 Then Exit Function
+    
+    ReDim slicerArray(1 To slicers.Count)
+    
+    For i = 1 To slicers.Count
+        Set slicerArray(i) = slicers(i)
+    Next i
+    
+    For i = 1 To UBound(slicerArray) - 1
+        For j = i + 1 To UBound(slicerArray)
+            If slicerArray(i).Caption > slicerArray(j).Caption Then
+                Set tempSlicer = slicerArray(i)
+                Set slicerArray(i) = slicerArray(j)
+                Set slicerArray(j) = tempSlicer
+            End If
+        Next j
+    Next i
+    
+    SortSlicersAlphabetically = slicerArray
+End Function
+
+Private Sub InitializeSlicerGroups(ByRef groups() As SlicerGroupConfig)
+    groups(MGroup).Name = "M_Group"
+    groups(MGroup).Prefix = "M -"
+    groups(MGroup).Color = COLOR_M_GROUP
+    Set groups(MGroup).Slicers = New Collection
+    
+    groups(QGroup).Name = "Q_Group"
+    groups(QGroup).Prefix = "Q -"
+    groups(QGroup).Color = COLOR_Q_GROUP
+    Set groups(QGroup).Slicers = New Collection
+    
+    groups(SQGroup).Name = "SQ_Group"
+    groups(SQGroup).Prefix = "SQ -"
+    groups(SQGroup).Color = COLOR_SQ_GROUP
+    Set groups(SQGroup).Slicers = New Collection
+End Sub
+
+Private Sub CategorizeSlicers(slicers() As slicer, ByRef groups() As SlicerGroupConfig)
+    Dim i As Long
+    Dim slicerCaption As String
+    
+    For i = LBound(slicers) To UBound(slicers)
+        slicerCaption = slicers(i).Caption
+        
+        If Left(slicerCaption, 3) = "M -" Then
+            groups(MGroup).Slicers.Add slicers(i)
+        ElseIf Left(slicerCaption, 3) = "Q -" Then
+            groups(QGroup).Slicers.Add slicers(i)
+        ElseIf Left(slicerCaption, 4) = "SQ -" Then
+            groups(SQGroup).Slicers.Add slicers(i)
+        End If
+    Next i
+End Sub
+
+Private Sub PositionAndStyleGroups(groups() As SlicerGroupConfig, wsPivot As Worksheet)
+    Dim groupLeft As Double, groupTop As Double
+    Dim groupIndex As Integer
+    
+    groupTop = wsPivot.Rows(GROUP_TOP_ROW).Top
+    groupLeft = wsPivot.Columns("E").Left
+    
+    For groupIndex = LBound(groups) To UBound(groups)
+        If groups(groupIndex).Slicers.Count > 0 Then
+            PositionSlicersInGrid groups(groupIndex).Slicers, groupLeft, groupTop
+            ApplySlicerStyling_MacCompatible groups(groupIndex).Slicers, groups(groupIndex).Color
+            
+            If groups(groupIndex).Slicers.Count > 1 Then
+                GroupSlicerShapes groups(groupIndex).Slicers, wsPivot, groups(groupIndex).Name
+            End If
+            
+            Dim groupWidth As Double
+            groupWidth = WorksheetFunction.Min(groups(groupIndex).Slicers.Count, SLICER_COLUMNS_PER_GROUP) * SLICER_LEFT_OFFSET
+            groupLeft = groupLeft + groupWidth + SLICER_GROUP_SPACING
+        End If
+    Next groupIndex
+End Sub
+
+Private Sub PositionSlicersInGrid(slicers As Collection, startLeft As Double, startTop As Double)
+    Dim slicer As slicer
+    Dim slicerIndex As Long, row As Long, col As Long
+    Dim slicerHeight As Double
+    
+    If slicers.Count = 0 Then Exit Sub
+    
+    slicerHeight = slicers(1).Shape.Height
+    
+    slicerIndex = 1
+    For Each slicer In slicers
+        row = (slicerIndex - 1) \ SLICER_COLUMNS_PER_GROUP
+        col = (slicerIndex - 1) Mod SLICER_COLUMNS_PER_GROUP
+        
+        With slicer.Shape
+            .Left = startLeft + col * SLICER_LEFT_OFFSET
+            .Top = startTop + row * slicerHeight
+        End With
+        
+        slicerIndex = slicerIndex + 1
+    Next slicer
+End Sub
+
+' ==================================================================================
+' MAC-COMPATIBLE STYLING
+' ==================================================================================
+
+Private Sub ApplySlicerStyling_MacCompatible(slicers As Collection, groupColor As Long)
+    #If Mac Then
+        ApplyBasicSlicerStyling slicers, groupColor
+    #Else
+        ApplyAdvancedSlicerStyling slicers, groupColor
+    #End If
+End Sub
+
+#If Mac Then
+Private Sub ApplyBasicSlicerStyling(slicers As Collection, groupColor As Long)
+    Dim slicer As slicer
+    
+    On Error Resume Next
+    For Each slicer In slicers
+        With slicer.Shape
+            If .Fill.Visible Then
+                .Fill.ForeColor.RGB = groupColor
+            End If
+        End With
+    Next slicer
+    On Error GoTo 0
+End Sub
+#Else
+Private Sub ApplyAdvancedSlicerStyling(slicers As Collection, groupColor As Long)
+    Dim styleName As String
+    Dim sty As SlicerStyle
+    Dim slicer As slicer
+    
+    styleName = "CustomStyle_" & groupColor
+    
+    On Error Resume Next
+    Set sty = ThisWorkbook.SlicerStyles(styleName)
+    On Error GoTo 0
+    
+    If sty Is Nothing Then
+        On Error Resume Next
+        Set sty = ThisWorkbook.SlicerStyles.Add(styleName, "SlicerStyleLight1")
+        If Not sty Is Nothing Then
+            With sty
+                .SlicerStyleElements(xlSlicerSelectedItemWithData).Interior.Color = groupColor
+                .SlicerStyleElements(xlSlicerSelectedItemWithNoData).Interior.Color = groupColor
+                .SlicerStyleElements(xlSlicerUnselectedItemWithData).Interior.Color = groupColor
+                .SlicerStyleElements(xlSlicerUnselectedItemWithNoData).Interior.Color = groupColor
+            End With
+        End If
+        On Error GoTo 0
+    End If
+    
+    If Not sty Is Nothing Then
+        For Each slicer In slicers
+            On Error Resume Next
+            slicer.Style = sty.Name
+            On Error GoTo 0
+        Next slicer
+    End If
+End Sub
+#End If
+
+Private Sub GroupSlicerShapes(slicers As Collection, wsPivot As Worksheet, groupName As String)
+    On Error Resume Next
+    
+    Dim shapeNames() As String
+    Dim i As Long
+    Dim slicer As slicer
+    
+    ReDim shapeNames(1 To slicers.Count)
+    
+    i = 1
+    For Each slicer In slicers
+        shapeNames(i) = slicer.Name
+        i = i + 1
+    Next slicer
+    
+    Dim grpShape As Shape
+    Set grpShape = wsPivot.Shapes.Range(shapeNames).Group
+    If Not grpShape Is Nothing Then
+        grpShape.Name = groupName & "_Slicers"
+    End If
+    
+    On Error GoTo 0
+End Sub
+
+' ==================================================================================
+' SLICER CONNECTION LOGIC
+' ==================================================================================
+
+Private Sub ConnectAllSlicersToAllPivotTables(wsPivot As Worksheet, ByRef progress As OverallProgress)
+    Dim pivotTables As Collection
+    Dim slicerCache As SlicerCache
+    Dim newConnections As Long, existingConnections As Long
+    
+    Set pivotTables = CachePivotTables(wsPivot)
+    
+    For Each slicerCache In ThisWorkbook.SlicerCaches
+        ConnectSlicerCacheToAllPivotTables slicerCache, pivotTables, progress, newConnections, existingConnections
+    Next slicerCache
+    
+    UpdateCombinedProgress progress, ConnectingSlicers, _
+        "Connected " & newConnections & " new, " & existingConnections & " existing"
+End Sub
+
+Private Function CachePivotTables(wsPivot As Worksheet) As Collection
+    Dim pivotTables As New Collection
+    Dim pt As PivotTable
+    
+    For Each pt In wsPivot.PivotTables
+        pivotTables.Add pt
+    Next pt
+    
+    Set CachePivotTables = pivotTables
+End Function
+
+Private Sub ConnectSlicerCacheToAllPivotTables(slicerCache As SlicerCache, pivotTables As Collection, ByRef progress As OverallProgress, ByRef newConnections As Long, ByRef existingConnections As Long)
+    Dim connectedPivotNames As Collection
+    Dim pt As PivotTable
+    
+    Set connectedPivotNames = GetConnectedPivotTableNames(slicerCache)
+    
+    For Each pt In pivotTables
+        progress.CurrentStep = progress.CurrentStep + 1
+        
+        If Not IsPivotTableAlreadyConnected(pt.Name, connectedPivotNames) Then
+            If ConnectSlicerToPivotTable(slicerCache, pt) Then
+                newConnections = newConnections + 1
+            End If
+        Else
+            existingConnections = existingConnections + 1
+        End If
+        
+        If progress.CurrentStep Mod 5 = 0 Then
+            UpdateCombinedProgress progress, ConnectingSlicers, "Connecting slicers... (" & newConnections & " new)"
+        End If
+    Next pt
+End Sub
+
+Private Function GetConnectedPivotTableNames(slicerCache As SlicerCache) As Collection
+    Dim connectedNames As New Collection
+    Dim pt As PivotTable
+    
+    On Error Resume Next
+    For Each pt In slicerCache.PivotTables
+        connectedNames.Add pt.Name
+    Next pt
+    On Error GoTo 0
+    
+    Set GetConnectedPivotTableNames = connectedNames
+End Function
+
+Private Function IsPivotTableAlreadyConnected(pivotTableName As String, connectedNames As Collection) As Boolean
+    Dim connectedName As Variant
+    
+    For Each connectedName In connectedNames
+        If CStr(connectedName) = pivotTableName Then
+            IsPivotTableAlreadyConnected = True
+            Exit Function
+        End If
+    Next connectedName
+    
+    IsPivotTableAlreadyConnected = False
+End Function
+
+Private Function ConnectSlicerToPivotTable(slicerCache As SlicerCache, pt As PivotTable) As Boolean
+    On Error GoTo ErrorHandler
+    
+    slicerCache.PivotTables.AddPivotTable pt
+    ConnectSlicerToPivotTable = True
+    Exit Function
+    
+ErrorHandler:
+    ConnectSlicerToPivotTable = False
+    Debug.Print "Failed to connect slicer to pivot table: " & pt.Name & " - " & Err.Description
+End Function
+
+' ==================================================================================
+' UTILITY FUNCTIONS
+' ==================================================================================
+
 Private Sub OptimizeExcelPerformance(optimize As Boolean)
     Static originalScreenUpdating As Boolean, originalCalculation As XlCalculation, originalEnableEvents As Boolean
     
@@ -452,18 +752,10 @@ Private Sub HandleCombinedError(errNumber As Long, errDescription As String, pro
     MsgBox "❌ " & errorMsg, vbCritical, "Process Error"
 End Sub
 
-' ==================================================================================
-' PLACEHOLDER FUNCTIONS (Include all other functions from previous macros)
-' ==================================================================================
-
-' Include all the other functions from both previous macros here:
-' - CreateSlicerForPivotTable
-' - OrganizeSlicersByGroups
-' - CachePivotTables
-' - GetConnectedPivotTableNames
-' - IsPivotTableAlreadyConnected
-' - ConnectSlicerToPivotTable
-' - All slicer styling functions
-' - All slicer grouping functions
-' etc.
-
+Private Function IsMac() As Boolean
+    #If Mac Then
+        IsMac = True
+    #Else
+        IsMac = False
+    #End If
+End Function
